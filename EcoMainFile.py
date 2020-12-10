@@ -9,13 +9,12 @@ from keras.layers import Conv2D, MaxPool2D, Dropout, Flatten
 from keras.layers import Dense
 
 import os
-import random
 import cv2
 from tqdm import tqdm
 
 labels = ['Tomato___Bacterial_spot', 'Tomato___Early_blight', 'Tomato___healthy', 'Tomato___Late_blight', 'Tomato___Leaf_Mold', 'Tomato___Septoria_leaf_spot', 'Tomato___Spider_mites Two-spotted_spider_mite', 'Tomato___Target_Spot', 'Tomato___Tomato_mosaic_virus', 'Tomato___Tomato_Yellow_Leaf_Curl_Virus']
 
-#labels = ['Tomato___Bacterial_spot', 'Tomato___Early_blight', 'Tomato___healthy']
+# labels = ['Tomato___Bacterial_spot', 'Tomato___Early_blight', 'Tomato___healthy', 'Tomato___Late_blight']
 
 IMG_SIZE = 256
 
@@ -27,23 +26,32 @@ def loadData(DIR):
         path = os.path.join(DIR, label)
         class_num = labels.index(label)
         print(label)
-        for img in tqdm(os.listdir(path)):
+        list_img = os.listdir(path)
+        SelectedData = np.arange(len(list_img))
+        SelectedData = np.random.choice(SelectedData, 500)
+        new_list_img = [list_img[elem] for elem in SelectedData]
+        for img in new_list_img:
             try:
                 arr = cv2.imread(os.path.join(path, img), cv2.IMREAD_COLOR)
                 resized_arr = cv2.resize(arr, (IMG_SIZE, IMG_SIZE))
                 X.append(resized_arr)
                 Y.append(class_num)
             except Exception as e:
-                print(e + '\n')
+                print(str(e) + '\n')
     return (np.array(X), np.array(Y))
 
+# Chargement des données
 DIR = './train'
 (X_train, Y_train) = loadData(DIR)
+
+
 DIR = './test'
 (X_test, Y_test) = loadData(DIR)
 
+
 X_train = X_train / 255
 X_test = X_test / 255
+
 
 # reshape the data
 X_train = X_train.reshape(-1, 256, 256, 3)
@@ -62,6 +70,37 @@ print("Y_test shape:" + str(Y_test.shape))
 
 IMG_SIZE = 256
 
+model = Sequential(
+    [
+        Conv2D(filters = 8, kernel_size = (3, 3), padding = 'same', activation = 'relu', input_shape = (IMG_SIZE, IMG_SIZE, 3)),
+        MaxPool2D(pool_size = (2, 2), strides = (2, 2)),
+
+        Conv2D(filters = 16, kernel_size = (3, 3), padding = 'same', activation = 'relu'),
+        MaxPool2D(pool_size = (2, 2), strides = (2, 2)),
+
+        Conv2D(filters = 32, kernel_size = (3, 3), padding = 'same', activation = 'relu'),
+        MaxPool2D(pool_size = (2, 2), strides = (2, 2)),
+
+        Conv2D(filters = 64, kernel_size = (3, 3), padding = 'same', activation = 'relu'),
+        MaxPool2D(pool_size = (2, 2), strides = (2, 2)),
+
+        Conv2D(filters = 128, kernel_size = (3, 3), padding = 'same', activation = 'relu'),
+        MaxPool2D(pool_size = (2, 2), strides = (2, 2)),
+        
+        Flatten(),
+        Dense(128, activation = 'relu'),
+        Dropout(0.5),
+        Dense(len(labels), activation = 'softmax')
+    ]
+)
+
+
+model.summary()
+
+predictions = model(X_train[:1]).numpy()
+print(predictions)
+
+"""
 model = Sequential(
     [
         Conv2D(filters = 32, kernel_size = (3, 3), padding = 'same', activation = 'relu', input_shape = (IMG_SIZE, IMG_SIZE, 3)),
@@ -85,12 +124,11 @@ model = Sequential(
         Dense(len(labels), activation = 'softmax')
     ]
 )
-
-model.summary()
+"""
 
 model.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = ['accuracy'])
 
-history = model.fit(X_train, Y_train, epochs = 2, validation_split = 0.2)
+history = model.fit(X_train, Y_train, epochs = 15, validation_split = 0.2)
 
 plt.plot(history.history['accuracy'])
 plt.plot(history.history['val_accuracy'])
@@ -108,3 +146,4 @@ plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend(['Train', 'Val'], loc = 'upper left')
 plt.show()
+
